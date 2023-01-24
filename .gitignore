@@ -1,0 +1,7 @@
+build/*
+tests/*
+.vscode/*
+*.DS_Store
+mpi_bench_temp_src
+headers/local_config.h
+headers/custom_config.h
