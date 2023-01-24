@@ -62,37 +62,35 @@ int main(int argc, char *argv[])
         sampleData = generate_file(__TEMP_FILE_SIZE__);
         generateSystemInfoJSON(cpusAvail, availMemGB, systemInformations.machine, systemInformations.sysname, systemInformations.version);
         log_print(info, "Begin benchmark execution\n");
-    }
 
-    MPI_CHECK(MPI_Barrier(MPI_COMM_WORLD));
-
-    // getting node names
-    if (processRank)
-    {
         log_print(system_info, "Master process running on ");
         printf("%s\n", sysHostname);
+        char *sysHostnameBuffer = malloc(100);
+        bzero(sysHostnameBuffer, 100);
+        log_print(system_info, "Slave process running on ");
+        MPI_CHECK(MPI_Recv(sysHostnameBuffer, 100, MPI_CHAR, 1, __MPI_SEND_DATA__, MPI_COMM_WORLD, MPI_STATUS_IGNORE));
+        printf("%s\n", sysHostnameBuffer);
     }
     else
     {
-        log_print(system_info, "Slave process running on ");
-        printf("%s\n", sysHostname);
+        MPI_CHECK(MPI_Send(sysHostname, strlen(sysHostname), MPI_CHAR, 0, __MPI_SEND_DATA__, MPI_COMM_WORLD));
     }
-    free(sysHostname);
 
+    free(sysHostname);
+    fflush(stdout);
     MPI_CHECK(MPI_Barrier(MPI_COMM_WORLD));
 
     // chaching baselie benchmark
-    runBenchmark(cachedBaseline, sampleData ,processRank, 1000, 10000, 1000);
+    runBenchmark(cachedBaseline, sampleData, processRank, 1000, 10000, 1000);
     MPI_CHECK(MPI_Barrier(MPI_COMM_WORLD));
 
     // blocking benchmark
-    runBenchmark(blocking, sampleData ,processRank, 1000, 10000, 1000);
+    runBenchmark(blocking, sampleData, processRank, 1000, 10000, 1000);
     MPI_CHECK(MPI_Barrier(MPI_COMM_WORLD));
 
     // imediate send imediate recive
-    runBenchmark(Immediate, sampleData ,processRank, 1000, 10000, 1000);
+    runBenchmark(Immediate, sampleData, processRank, 1000, 10000, 1000);
     MPI_CHECK(MPI_Barrier(MPI_COMM_WORLD));
-
 
     MPI_CHECK(MPI_Finalize());
 
