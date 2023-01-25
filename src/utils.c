@@ -40,23 +40,25 @@ char *testTypeToString(testType testType)
     bzero(buff, 50);
     switch (testType)
     {
-    case cachedBaseline:
-        memcpy(buff, "cached_send_recv\0", sizeof("cached_send_recv\0"));
+    case Buffered:
+        memcpy(buff, "Buffered\0", sizeof("Buffered\0"));
         break;
 
-    case blocking:
-        memcpy(buff, "send_recv\0", sizeof("send_recv\0"));
+    case Unbuffered:
+        memcpy(buff, "Unbuffered\0", sizeof("Unbuffered\0"));
         break;
 
-    case Immediate:
-        memcpy(buff, "isend_irecv\0", sizeof("isend_irecv\0"));
+    case Broadcast:
+        memcpy(buff, "Broadcast\0", sizeof("Broadcast\0"));
+        break;
+    case Scatter:
+        memcpy(buff, "Scatter\0", sizeof("Scatter\0"));
         break;
     default:
         break;
     };
     return buff;
 }
-
 
 void print_benchmark_result(benchmarkResult *benchmark)
 {

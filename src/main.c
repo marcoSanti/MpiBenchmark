@@ -83,16 +83,9 @@ int main(int argc, char *argv[])
     MPI_CHECK(MPI_Barrier(MPI_COMM_WORLD));
 
     // chaching baselie benchmark
-    runBenchmark(cachedBaseline, sampleData, processRank, 1000, 10000, 1000);
+    runBenchmark(Buffered, sampleData, processRank, 1000, 10000, 1000);
     MPI_CHECK(MPI_Barrier(MPI_COMM_WORLD));
 
-    // blocking benchmark
-    runBenchmark(blocking, sampleData, processRank, 1000, 10000, 1000);
-    MPI_CHECK(MPI_Barrier(MPI_COMM_WORLD));
-
-    // imediate send imediate recive
-    runBenchmark(Immediate, sampleData, processRank, 1000, 10000, 1000);
-    MPI_CHECK(MPI_Barrier(MPI_COMM_WORLD));
 
     MPI_CHECK(MPI_Finalize());
 

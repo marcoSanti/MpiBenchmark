@@ -1,6 +1,16 @@
 #include <mpi_header.h>
 #include <utils.h>
 
+/**
+ * vedere mpi scatter e broadcast. per ora fare un benchmark su come andare a misurare bene i tempi di invio: invio e ricevo da altro lato e divido per due il tempo
+ * poi vare un invio da un processo a N parti
+ * mettere una barrier tra send e recive e prendere il tempo dopo la barrier.
+ *
+ * per il broadcast prendo tutto il file e lo invio a tutti quanti. poi sto a misurare con una barrier quanto tempo ci ha messo a inviare il file a tutti quanti.
+ *
+ *
+ */
+
 void runBenchmark(testType tp, FILE *sourceData, int processRank, int minWinSize, int maxWinSize, int winSizeStep)
 {
     benchmarkResult *benchmark = initBench(tp, __TEMP_FILE_SIZE__);
@@ -11,7 +21,7 @@ void runBenchmark(testType tp, FILE *sourceData, int processRank, int minWinSize
         {
             addBenchResToBenchmark(benchmark, subResult);
             log_print(benchmark_info, "Completed iteration ");
-            printf("%d of %d for benchmark: %s\n", (int)(winSize/winSizeStep),(int)(maxWinSize/winSizeStep), testTypeToString(tp) );
+            printf("%d of %d for benchmark: %s\n", (int)(winSize / winSizeStep), (int)(maxWinSize / winSizeStep), testTypeToString(tp));
         }
     }
     if (processRank)
@@ -39,44 +49,7 @@ benchmarkSubResult *_runBenchmark(testType testType, FILE *sourceData, double fi
 
     switch (testType)
     {
-    case blocking:
-        if (rank == 0)
-        {
-            fseek(sourceData, 0, SEEK_SET);
-
-            // start timer
-            currentBenchmark->testBeginTime = MPI_Wtime();
-            for (double i = 0; i < fileSize; i = i + windowSize)
-            {
-                fseek(sourceData, i * windowSize, SEEK_SET);
-                fread(buffer, windowSize, 1, sourceData);
-                MPI_CHECK(MPI_Send(buffer, 1, MPI_BYTE, 1, __MPI_SEND_DATA__, MPI_COMM_WORLD));
-            }
-
-            currentBenchmark->testEndTime = MPI_Wtime();
-            // send termination message to reciver
-            MPI_CHECK(MPI_Send(buffer, 1, MPI_BYTE, 1, __MPI_TERMINATE_CONNECTION__, MPI_COMM_WORLD));
-
-            // todo: rendere migliore
-            double time_elapsed_seconds = (currentBenchmark->testEndTime - currentBenchmark->testBeginTime);
-            currentBenchmark->testBandWidth = fileSize / time_elapsed_seconds;
-        }
-        else
-        {
-            int continue_reciving = 1;
-            MPI_Status status;
-            while (continue_reciving)
-            {
-                MPI_CHECK(MPI_Recv(buffer, 1, MPI_BYTE, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status));
-                if (status.MPI_TAG == 1) // terminate execution
-                    continue_reciving = 0;
-            }
-        }
-
-        break;
-
-    case cachedBaseline:
-
+    case Buffered:
         if (rank == 0)
         {
             fseek(sourceData, 0, SEEK_SET);
@@ -92,13 +65,9 @@ benchmarkSubResult *_runBenchmark(testType testType, FILE *sourceData, double fi
                 MPI_CHECK(MPI_Send(buffer, 1, MPI_BYTE, 1, __MPI_SEND_DATA__, MPI_COMM_WORLD));
             }
 
-            currentBenchmark->testEndTime = MPI_Wtime();
-
             // send termination message to reciver
             MPI_CHECK(MPI_Send(buffer, 1, MPI_BYTE, 1, __MPI_TERMINATE_CONNECTION__, MPI_COMM_WORLD));
 
-            double time_elapsed_seconds = (currentBenchmark->testEndTime - currentBenchmark->testBeginTime);
-            currentBenchmark->testBandWidth = fileSize / time_elapsed_seconds;
         }
         else
         {
@@ -111,41 +80,17 @@ benchmarkSubResult *_runBenchmark(testType testType, FILE *sourceData, double fi
                     continue_reciving = 0;
             }
         }
-        break;
 
-    case Immediate:
-        if (rank == 0)
-        {
-
-            currentBenchmark->testBeginTime = MPI_Wtime();
-            MPI_Request request;
-            fseek(sourceData, 0, SEEK_SET);
-
-            for (double i = 0; i < fileSize; i = i + windowSize)
-            {
-                fseek(sourceData, i * windowSize, SEEK_SET);
-                fread(buffer, windowSize, 1, sourceData);
-                MPI_CHECK(MPI_Isend(buffer, 1, MPI_BYTE, 1, __MPI_SEND_DATA__, MPI_COMM_WORLD, &request));
-            }
-
+        // barrier to wait for the reciver to have recived all data
+        MPI_CHECK(MPI_Barrier(MPI_COMM_WORLD));
+        if(rank==0){
             currentBenchmark->testEndTime = MPI_Wtime();
-
-            double time_elapsed_seconds = (double)(currentBenchmark->testEndTime - currentBenchmark->testBeginTime);
-            currentBenchmark->testBandWidth = fileSize / time_elapsed_seconds;
-
-            MPI_CHECK(MPI_Send(buffer, 1, MPI_BYTE, 1, __MPI_TERMINATE_CONNECTION__, MPI_COMM_WORLD));
+            //save the elapsed time of the benchmark
+            currentBenchmark->testBandWidth = fileSize / (currentBenchmark->testEndTime - currentBenchmark->testBeginTime);
         }
-        else
-        {
-            int continue_reciving = 1;
-            MPI_Status status;
-            while (continue_reciving)
-            {
-                MPI_CHECK(MPI_Recv(buffer, 1, MPI_BYTE, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status));
-                if (status.MPI_TAG == 1) // terminate execution
-                    continue_reciving = 0;
-            }
-        }
+        
+
+        break;
 
     default:
         break;

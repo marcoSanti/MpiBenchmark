@@ -2,10 +2,10 @@
 // data types for mpi
 typedef enum _benchmark_test_type
 {
-    cachedBaseline,
-    blocking,
-    Immediate,
-    oneSided
+    Buffered, 
+    Unbuffered,
+    Broadcast,
+    Scatter
 } testType;
 
 // struct to store benchmark result
