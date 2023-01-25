@@ -37,6 +37,7 @@ void log_print(log_msg_type type, char *message)
 char *testTypeToString(testType testType)
 {
     char *buff = (char *)malloc(50);
+    bzero(buff, 50);
     switch (testType)
     {
     case cachedBaseline:

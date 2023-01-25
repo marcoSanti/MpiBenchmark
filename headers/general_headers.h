@@ -18,8 +18,9 @@
 #include <string.h>
 #include <fcntl.h>
 #include <time.h>
-#include <sys/errno.h>
 #include <assert.h>
+#include <sys/errno.h>
+#include <sys/stat.h>
 #include <sys/utsname.h>
 
 #include <constants.h>

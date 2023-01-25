@@ -27,6 +27,7 @@ int main(int argc, char *argv[])
     if (processRank)
     {
 
+        
         struct utsname systemInformations;
         uname(&systemInformations);
 
@@ -36,6 +37,7 @@ int main(int argc, char *argv[])
         atexit(remove_sample_data);
 
         printf("\n\nMpi benchmark version %s\nCreated by %s\n%s\n\n", __MPI_BENCH_VERSION__, __MPI_BENCH_AUTHOR__, __MPI_BENCH_COMPANY__);
+
 
         char textBuffer[500];
         log_print(system_info, "System informations for master node: ");

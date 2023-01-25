@@ -8,7 +8,11 @@ void runBenchmark(testType tp, FILE *sourceData, int processRank, int minWinSize
     {
         benchmarkSubResult *subResult = _runBenchmark(tp, sourceData, __TEMP_FILE_SIZE__, winSize);
         if (processRank)
+        {
             addBenchResToBenchmark(benchmark, subResult);
+            log_print(benchmark_info, "Completed iteration ");
+            printf("%d of %d for benchmark: %s\n", (int)(winSize/winSizeStep),(int)(maxWinSize/winSizeStep), testTypeToString(tp) );
+        }
     }
     if (processRank)
     {
@@ -174,7 +178,7 @@ void addBenchResToBenchmark(benchmarkResult *benchmark, benchmarkSubResult *subT
     if (benchmark->benchmarkCount == 0)
         benchmark->listOfBenchmarks = (benchmarkSubResult **)malloc(sizeof(benchmarkSubResult *));
     else
-        benchmark->listOfBenchmarks = (benchmarkSubResult **)realloc(benchmark->listOfBenchmarks, ((benchmark->benchmarkCount) + 1)*sizeof(benchmarkResult*));
+        benchmark->listOfBenchmarks = (benchmarkSubResult **)realloc(benchmark->listOfBenchmarks, ((benchmark->benchmarkCount) + 1) * sizeof(benchmarkResult *));
 
     (benchmark->benchmarkCount)++;
 
