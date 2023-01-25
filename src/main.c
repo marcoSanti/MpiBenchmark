@@ -27,7 +27,6 @@ int main(int argc, char *argv[])
     if (processRank)
     {
 
-        
         struct utsname systemInformations;
         uname(&systemInformations);
 
@@ -37,7 +36,6 @@ int main(int argc, char *argv[])
         atexit(remove_sample_data);
 
         printf("\n\nMpi benchmark version %s\nCreated by %s\n%s\n\n", __MPI_BENCH_VERSION__, __MPI_BENCH_AUTHOR__, __MPI_BENCH_COMPANY__);
-
 
         char textBuffer[500];
         log_print(system_info, "System informations for master node: ");
@@ -63,15 +61,25 @@ int main(int argc, char *argv[])
         printf("\n");
         sampleData = generate_file(__TEMP_FILE_SIZE__);
         generateSystemInfoJSON(cpusAvail, availMemGB, systemInformations.machine, systemInformations.sysname, systemInformations.version);
-        log_print(info, "Begin benchmark execution\n");
+        log_print(info, "Running benchmark on ");
+        printf("%d nodes\n", __NODE__COUNT__);
+        log_print(info, "Begin benchmark execution\n\n");
 
         log_print(system_info, "Master process running on ");
         printf("%s\n", sysHostname);
+
         char *sysHostnameBuffer = malloc(100);
-        bzero(sysHostnameBuffer, 100);
-        log_print(system_info, "Slave process running on ");
-        MPI_CHECK(MPI_Recv(sysHostnameBuffer, 100, MPI_CHAR, 1, __MPI_SEND_DATA__, MPI_COMM_WORLD, MPI_STATUS_IGNORE));
-        printf("%s\n", sysHostnameBuffer);
+        int commSize;
+        MPI_CHECK(MPI_Comm_size(MPI_COMM_WORLD, &commSize));
+
+        for (int i = 1; i < commSize; i++)
+        {
+            bzero(sysHostnameBuffer, 100);
+            log_print(system_info, "Slave process running on ");
+            MPI_CHECK(MPI_Recv(sysHostnameBuffer, 100, MPI_CHAR, i, __MPI_SEND_DATA__, MPI_COMM_WORLD, MPI_STATUS_IGNORE));
+            printf("%s\n", sysHostnameBuffer);
+        }
+        log_print(benchmark_info, "Began benchmark execution\n");
     }
     else
     {
@@ -82,10 +90,11 @@ int main(int argc, char *argv[])
     fflush(stdout);
     MPI_CHECK(MPI_Barrier(MPI_COMM_WORLD));
 
-    // chaching baselie benchmark
     runBenchmark(Buffered, sampleData, processRank, 1000, 10000, 1000);
-    MPI_CHECK(MPI_Barrier(MPI_COMM_WORLD));
 
+    runBenchmark(Unbuffered, sampleData, processRank, 1000, 10000, 1000);
+
+    runBenchmark(Broadcast, sampleData, processRank, 1000, 10000, 1000);
 
     MPI_CHECK(MPI_Finalize());
 

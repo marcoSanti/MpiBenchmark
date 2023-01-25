@@ -1,5 +1,17 @@
 #!/bin/bash
 
+#CONFIG VARIABLES
+TARGETCLUSTER="cascadelake"
+NODECOUNT=4
+MINWINSIZE=1000
+MAXWINSIZE=10000
+WINSIZESTEP=1000
+#END OF CONFIG VARIABLES
+
+
+
+
+
 CC=$(which mpicc)
 DESTARCH=$(uname -m)
 DESTOS=$(uname -s)
@@ -8,23 +20,15 @@ HEADERSFOLDER=$(pwd)"/headers"
 TESTRESULTDIR=$(pwd)"/tests/$DESTARCH-$DESTOS"
 KERNELVERSION=$(uname -r)
 
-generate_configuration (){
-    #echo some build variables to the configuration header file...
-    echo "Enter size for test file followed by measure units of test file: (KBYTES, MBYTES, GBYTES):"
-    read -r CONFIG_TEST_FILE_SIZE CONFIG_TEST_UNIT_MEASURE
-    echo "Enter windo size in bytes"
-    read CONFIG_WIN_SIZE
-    echo "#undef __TEMP_FILE_SIZE__" > $HEADERSFOLDER/custom_config.h
-    echo "#undef __WINDOW__SIZE__" > $HEADERSFOLDER/custom_config.h
-    echo "#define __TEMP_FILE_SIZE__ $CONFIG_TEST_FILE_SIZE $CONFIG_TEST_UNIT_MEASURE" >> $HEADERSFOLDER/custom_config.h
-    echo "#define __WINDOW__SIZE__ $CONFIG_WIN_SIZE" >> $HEADERSFOLDER/custom_config.h
-    echo "Configuration saved into $HEADERSFOLDER/custom_config.h"
-}
 
 build_benchmark (){
 
     echo "#define __BUILD_DIR__ \"$BUILDDIR\"" > $HEADERSFOLDER/local_config.h
     echo "#define __TEST_OUT_DIR__ \"$TESTRESULTDIR\"" >> $HEADERSFOLDER/local_config.h
+    echo "#define __NODE__COUNT__ $NODECOUNT" >> $HEADERSFOLDER/local_config.h
+    echo "#define __MIN_WIN_SIZE__ $MINWINSIZE" >> $HEADERSFOLDER/local_config.h
+    echo "#define __MAX_WIN_SIZE__ $MAXWINSIZE" >> $HEADERSFOLDER/local_config.h
+    echo "#define __WIN_SIZE_STEP__ $WINSIZESTEP" >> $HEADERSFOLDER/local_config.h
 
     COMPILER=$CC" -I "$(pwd)"/headers"
     echo "compiler is "$CC
@@ -53,7 +57,7 @@ run_benchmark (){
     echo "executing "$BUILDDIR"/mpi_bench"
     echo
     echo
-    mpirun -np 2 $BUILDDIR/mpi_bench
+    mpirun -np $NODECOUNT $BUILDDIR/mpi_bench
 }
 
 build_run (){
@@ -66,22 +70,21 @@ remove_tests (){
     rm -rf ./tests
 }
 
+slurm_run(){
+    
+    srun -p $TARGETCLUSTER -n 1 --pty ./build.sh build
+
+    echo "#!/bin/sh" > sbatch.sh
+    echo "#SBATCH -p $TARGETCLUSTER" >> sbatch.sh
+    echo "#SBATCH -N $NODECOUNT" >> sbatch.sh
+    echo "#SBATCH -o $TESTRESULTDIR/benchmark_log.log" >> sbatch.sh
+    echo "#SBATCH -e $TESTRESULTDIR/benchmark_err.err" >> sbatch.sh
+    echo "srun --mpi=pmix $BUILDDIR/mpi_bench" >> sbatch.sh
+    sbatch sbatch.sh
+}
+
 help_func (){
-    echo "Usage of the file: \n\t./build.sh [ | build | genconf | clean | run | buildrun | cleantest | cleanall ]"
-    echo
-    echo "build = compiles the benchmark"
-    echo
-    echo "makeconf = generate the configuration file for the benchmark. if not called, when building the benchmark, the default transfer size file will be 1 Gbyte"
-    echo
-    echo "clean = deletes all builded version of the benchmark"
-    echo
-    echo "run = executes the benchmark"
-    echo
-    echo "buildrun = generate the configuration, compiles and executes the benchmark."
-    echo
-    echo "cleantest = removes all previous test saved files"
-    echo
-    echo "cleanall = removes compiled files as well as prevous run test results"
+    echo ""
 }
 
 if [[ $1 == "build" ]]
@@ -89,12 +92,7 @@ then
     
     build_benchmark
     
-elif [[ $1 == "makeconf" ]]
-then
-    
-    generate_configuration
-    
-elif [[ $1 == "clean" ]]
+elif [[ $1 == "clear" ]]
 then
     
     clean_build_folder
@@ -109,16 +107,15 @@ then
     build_benchmark
     run_benchmark
 
-elif [[ $1 == "cleantest" ]]
+elif [[ $1 == "clean" ]]
 then
-
-    remove_tests
-
-elif [[ $1 == "cleanall" ]]
-then
-
     remove_tests
     clean_build_folder
+
+elif [[ $1 == "slurm_run" ]]
+then
+
+    slurm_run
 
 else
     echo "Uknown option $1"
