@@ -90,7 +90,8 @@ do {                                                             \
         \"system_os\": \"%s\",\n\
         \"system_kernel\": \"%s\",\n\
         \"available_cpu\": \"%d\",\n\
-        \"available_mem_GB\": \"%lf\"\n\
+        \"available_mem_GB\": \"%lf\",\n\
+        \"nodes-count\":%d\n\
     }\n\
 }\n"
 

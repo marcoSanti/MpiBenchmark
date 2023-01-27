@@ -148,7 +148,8 @@ void generateSystemInfoJSON(int cpus, float memoryGB, char *sysArch, char *sysOs
             sysOs,
             sysKernel,
             cpus,
-            memoryGB);
+            memoryGB,
+            __NODE__COUNT__);
     fclose(out);
     free(fileNameBuffer);
 }
