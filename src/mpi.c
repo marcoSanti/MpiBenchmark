@@ -147,7 +147,6 @@ benchmarkSubResult *_runBenchmark(testType testType, FILE *sourceData, double fi
 
         if (rank == 0)
         {
-            fseek(sourceData, 0, SEEK_SET);
             // start timer
             currentBenchmark->testBeginTime = MPI_Wtime();
 
@@ -173,7 +172,66 @@ benchmarkSubResult *_runBenchmark(testType testType, FILE *sourceData, double fi
             currentBenchmark->testBandWidth = fileSize / (currentBenchmark->testEndTime - currentBenchmark->testBeginTime);
         }
 
+    case Scatter:
+
+        if (rank == 0)
+        {
+            // start timer
+            currentBenchmark->testBeginTime = MPI_Wtime();
+
+            // fill buffer with first block of data and then not repeat again
+            fread(buffer, windowSize, 1, sourceData);
+        }
+
+        int wd_equally_distributable;
+        wd_equally_distributable = (windowSize % (commSize - 1) == 0);
+
+        // commsize-1 to not count master node
+        int bytes_per_node = windowSize / (commSize - 1);
+        char *recv_buffer = (char *)malloc(bytes_per_node);
+
+        // preparing displacement vector to tell mpi how much data to send to each node. last node gett all the remainig.
+        int *bytes_per_node_count = malloc(commSize*sizeof(int));
+        int *bytes_per_node_displacement=malloc(commSize*sizeof(int));
+        if (!wd_equally_distributable)
+        {
+            bytes_per_node_count[0] = 0;
+            bytes_per_node_displacement[0] = 0;
+            for (int i = 1; i < commSize; i++)
+            {
+                bytes_per_node_count[i] = bytes_per_node;
+                bytes_per_node_displacement[i] = ((i-1) * bytes_per_node);
+            }
+            bytes_per_node_count[commSize - 1] += (windowSize % (commSize - 1));
+        }
+
+        for (double i = 0; i < fileSize; i = i + windowSize)
+        {
+            if (rank == 0)
+            {
+                fseek(sourceData, i * windowSize, SEEK_SET);
+                fread(buffer, windowSize, 1, sourceData);
+            }
+            if (wd_equally_distributable)
+                MPI_CHECK(MPI_Scatter(buffer, bytes_per_node, MPI_BYTE, recv_buffer, bytes_per_node, MPI_BYTE, 0, MPI_COMM_WORLD));
+            else
+                MPI_CHECK(MPI_Scatterv(buffer, bytes_per_node_count, bytes_per_node_displacement, MPI_BYTE, recv_buffer, bytes_per_node, MPI_BYTE, 0, MPI_COMM_WORLD));
+        }
+
+        MPI_CHECK(MPI_Barrier(MPI_COMM_WORLD));
+        if (rank == 0)
+        {
+            currentBenchmark->testEndTime = MPI_Wtime();
+            // save the elapsed time of the benchmark
+            currentBenchmark->testBandWidth = fileSize / (currentBenchmark->testEndTime - currentBenchmark->testBeginTime);
+        }
+        free(bytes_per_node_count);
+        free(bytes_per_node_displacement);
+        free(recv_buffer);
+        break;
+
     default:
+        log_print(error, "No benchmark implemented for given parameter.\n");
         break;
     }
 

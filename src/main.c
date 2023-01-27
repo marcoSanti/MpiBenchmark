@@ -90,11 +90,12 @@ int main(int argc, char *argv[])
     fflush(stdout);
     MPI_CHECK(MPI_Barrier(MPI_COMM_WORLD));
 
-    runBenchmark(Buffered, sampleData, processRank, 1000, 10000, 1000);
+    //runBenchmark(Buffered, sampleData, processRank, 1000, 10000, 1000);
 
-    runBenchmark(Unbuffered, sampleData, processRank, 1000, 10000, 1000);
+    //runBenchmark(Unbuffered, sampleData, processRank, 1000, 10000, 1000);
 
-    runBenchmark(Broadcast, sampleData, processRank, 1000, 10000, 1000);
+    //runBenchmark(Broadcast, sampleData, processRank, 1000, 10000, 1000);
+    runBenchmark(Scatter, sampleData, processRank, __MIN_WIN_SIZE__, __MAX_WIN_SIZE__, __WIN_SIZE_STEP__);
 
     MPI_CHECK(MPI_Finalize());
 
