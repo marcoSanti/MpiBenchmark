@@ -186,11 +186,14 @@ benchmarkSubResult *_runBenchmark(testType testType, FILE *sourceData, double fi
         int bytes_per_node = (int)(windowSize / (commSize - 1));
         char *recv_buffer = (char *)malloc(bytes_per_node);
 
-        // preparing displacement vector to tell mpi how much data to send to each node. last node gett all the remainig.
+        //calculating max offset possble with file size and windows size
+        //so that i am shure i will allways transfer a multiple of windowSize
+        int bytes_count_not_tx = fileSize % windowSize;
+        int max_transfer_size = fileSize - bytes_count_not_tx;
 
         
 
-        for (double i = 0; i < fileSize; i = i + windowSize)
+        for (double i = 0; i < max_transfer_size; i = i + windowSize)
         {
             if (rank == 0)
             {
@@ -205,8 +208,9 @@ benchmarkSubResult *_runBenchmark(testType testType, FILE *sourceData, double fi
         if (rank == 0)
         {
             currentBenchmark->testEndTime = MPI_Wtime();
-            // save the elapsed time of the benchmark
-            currentBenchmark->testBandWidth = fileSize / (currentBenchmark->testEndTime - currentBenchmark->testBeginTime);
+            // save the elapsed time of the benchmark. here i need to divide the effective tx data and not the filesize as it might happen that 
+            //the file size is not a multiple of windowSize
+            currentBenchmark->testBandWidth = max_transfer_size / (currentBenchmark->testEndTime - currentBenchmark->testBeginTime);
         }
         free(recv_buffer);
         break;
