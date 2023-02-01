@@ -188,7 +188,7 @@ benchmarkSubResult *_runBenchmark(testType testType, FILE *sourceData, double fi
 
         //calculating max offset possble with file size and windows size
         //so that i am shure i will allways transfer a multiple of windowSize
-        int bytes_count_not_tx = fileSize % windowSize;
+        int bytes_count_not_tx = (int)fileSize % windowSize;
         int max_transfer_size = fileSize - bytes_count_not_tx;
 
         
