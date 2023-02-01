@@ -1,4 +1,4 @@
-#define __MPI_BENCH_VERSION__ "0.1"
+#define __MPI_BENCH_VERSION__ "0.2"
 #define __MPI_BENCH_AUTHOR__ "Marco Edoardo Santimaria (marco.santimaria@edu.unito.it)"
 #define __MPI_BENCH_COMPANY__ "Universita degli studi di Torino"
 
