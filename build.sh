@@ -1,25 +1,24 @@
 #!/bin/bash
 
 #CONFIG VARIABLES
-TARGETCLUSTER="cascadelake"
-NODECOUNT=4
+TARGETCLUSTER="broadwell"
+NODECOUNT=10
 MINWINSIZE=1000
 MAXWINSIZE=10000
 WINSIZESTEP=1000
 #END OF CONFIG VARIABLES
 
 
-
-
-
-CC=$(which mpicc)
+CC="mpicc"
 DESTARCH=$(uname -m)
 DESTOS=$(uname -s)
 BUILDDIR=$(pwd)"/build/$DESTARCH-$DESTOS"
-HEADERSFOLDER=$(pwd)"/headers"
-TESTRESULTDIR=$(pwd)"/tests/$DESTARCH-$DESTOS"
+HEADERSFOLDER="$(pwd)/headers/"
+TESTRESULTDIR="$(pwd)/tests/$DESTARCH-$DESTOS"
 KERNELVERSION=$(uname -r)
 
+
+echo $HEADERSFOLDER
 
 build_benchmark (){
 
@@ -30,7 +29,8 @@ build_benchmark (){
     echo "#define __MAX_WIN_SIZE__ $MAXWINSIZE" >> $HEADERSFOLDER/local_config.h
     echo "#define __WIN_SIZE_STEP__ $WINSIZESTEP" >> $HEADERSFOLDER/local_config.h
 
-    COMPILER=$CC" -I "$(pwd)"/headers"
+    COMPILER="$CC -I$HEADERSFOLDER"
+
     echo "compiler is "$CC
     echo "current architecture is" ${DESTARCH}
     echo "current build folder is set to" ${BUILDDIR}
@@ -43,7 +43,7 @@ build_benchmark (){
     $COMPILER ${BUILDDIR}/utils.o ${BUILDDIR}/generate_random_data.o  ${BUILDDIR}/mpi.o ${BUILDDIR}/main.o -o $BUILDDIR/mpi_bench
 }
 
- 
+
 clean_build_folder (){
     echo "Removing "$(pwd)"/build/"
     rm -rf ./build
@@ -71,14 +71,15 @@ remove_tests (){
 }
 
 slurm_run(){
-    
-    srun -p $TARGETCLUSTER -n 1 --pty ./build.sh build
+
+   # srun -p $TARGETCLUSTER -n 1 --pty ./build.sh build
 
     echo "#!/bin/sh" > sbatch.sh
     echo "#SBATCH -p $TARGETCLUSTER" >> sbatch.sh
     echo "#SBATCH -N $NODECOUNT" >> sbatch.sh
     echo "#SBATCH -o $TESTRESULTDIR/benchmark_log.log" >> sbatch.sh
     echo "#SBATCH -e $TESTRESULTDIR/benchmark_err.err" >> sbatch.sh
+    echo "#SBATCH --ntasks-per-node=1" >> sbatch.sh
     echo "srun --mpi=pmix $BUILDDIR/mpi_bench" >> sbatch.sh
     sbatch sbatch.sh
 }
@@ -89,18 +90,18 @@ help_func (){
 
 if [[ $1 == "build" ]]
 then
-    
+
     build_benchmark
-    
+
 elif [[ $1 == "clear" ]]
 then
-    
+
     clean_build_folder
-    
+
 elif [[ $1 == "run" ]]
 then
     run_benchmark
-    
+
 elif [[ -z "$1" ]] || [[ "$1" == "buildrun" ]]
 then
 
@@ -121,4 +122,3 @@ else
     echo "Uknown option $1"
     help_func
 fi
-
