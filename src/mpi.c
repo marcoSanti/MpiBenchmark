@@ -36,7 +36,9 @@ void runBenchmark(testType tp, FILE *sourceData, int processRank, int minWinSize
 
 benchmarkSubResult *_runBenchmark(testType testType, FILE *sourceData, double fileSize, int windowSize)
 {
-    int rank, commSize;
+    int rank, commSize, max_transfer_size = fileSize;
+    MPI_Request request;
+    MPI_Status status;
 
     benchmarkSubResult *currentBenchmark = (benchmarkSubResult *)malloc(sizeof(benchmarkSubResult));
 
@@ -47,21 +49,19 @@ benchmarkSubResult *_runBenchmark(testType testType, FILE *sourceData, double fi
 
     char *buffer = malloc(windowSize);
 
+    if (rank == 0)
+    {
+        currentBenchmark->testBeginTime = MPI_Wtime(); // start timer
+        fseek(sourceData, 0, SEEK_SET);
+        fread(buffer, windowSize, 1, sourceData); // fill buffer with first block of data and then not repeat again
+    }
+
     switch (testType)
     {
     case Buffered:
         if (rank == 0)
         {
-            fseek(sourceData, 0, SEEK_SET);
-            MPI_Request request;
-
-            // start timer
-            currentBenchmark->testBeginTime = MPI_Wtime();
-
-            // fill buffer with first block of data and then not repeat again
-            fread(buffer, windowSize, 1, sourceData);
-
-            for (double i = 0; i < fileSize; i = i + windowSize)
+            for (double i = 0; i < max_transfer_size; i = i + windowSize)
             {
                 MPI_CHECK(MPI_Isend(buffer, windowSize, MPI_BYTE, 1, __MPI_SEND_DATA__, MPI_COMM_WORLD, &request));
             }
@@ -69,14 +69,10 @@ benchmarkSubResult *_runBenchmark(testType testType, FILE *sourceData, double fi
             // send termination message to reciver
             MPI_CHECK(MPI_Send(buffer, 1, MPI_BYTE, 1, __MPI_TERMINATE_CONNECTION__, MPI_COMM_WORLD));
             MPI_CHECK(MPI_Barrier(MPI_COMM_WORLD));
-            currentBenchmark->testEndTime = MPI_Wtime();
-            // save the elapsed time of the benchmark
-            currentBenchmark->testBandWidth = fileSize / (currentBenchmark->testEndTime - currentBenchmark->testBeginTime);
         }
         else if (rank == 1)
         {
             int continue_reciving = 1;
-            MPI_Status status;
             while (continue_reciving)
             {
                 MPI_CHECK(MPI_Recv(buffer, windowSize, MPI_BYTE, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status));
@@ -98,16 +94,8 @@ benchmarkSubResult *_runBenchmark(testType testType, FILE *sourceData, double fi
     case Unbuffered:
         if (rank == 0)
         {
-            fseek(sourceData, 0, SEEK_SET);
-            MPI_Request request;
 
-            // start timer
-            currentBenchmark->testBeginTime = MPI_Wtime();
-
-            // fill buffer with first block of data and then not repeat again
-            fread(buffer, windowSize, 1, sourceData);
-
-            for (double i = 0; i < fileSize; i = i + windowSize)
+            for (double i = 0; i < max_transfer_size; i = i + windowSize)
             {
                 fseek(sourceData, i * windowSize, SEEK_SET);
                 fread(buffer, windowSize, 1, sourceData);
@@ -118,14 +106,10 @@ benchmarkSubResult *_runBenchmark(testType testType, FILE *sourceData, double fi
             MPI_CHECK(MPI_Send(buffer, 1, MPI_BYTE, 1, __MPI_TERMINATE_CONNECTION__, MPI_COMM_WORLD));
 
             MPI_CHECK(MPI_Barrier(MPI_COMM_WORLD));
-            currentBenchmark->testEndTime = MPI_Wtime();
-            // save the elapsed time of the benchmark
-            currentBenchmark->testBandWidth = fileSize / (currentBenchmark->testEndTime - currentBenchmark->testBeginTime);
         }
         else if (rank == 1)
         {
             int continue_reciving = 1;
-            MPI_Status status;
             while (continue_reciving)
             {
                 MPI_CHECK(MPI_Recv(buffer, windowSize, MPI_BYTE, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status));
@@ -145,16 +129,7 @@ benchmarkSubResult *_runBenchmark(testType testType, FILE *sourceData, double fi
 
     case Broadcast:
 
-        if (rank == 0)
-        {
-            // start timer
-            currentBenchmark->testBeginTime = MPI_Wtime();
-
-            // fill buffer with first block of data and then not repeat again
-            fread(buffer, windowSize, 1, sourceData);
-        }
-
-        for (double i = 0; i < fileSize; i = i + windowSize)
+        for (double i = 0; i < max_transfer_size; i = i + windowSize)
         {
             if (rank == 0)
             {
@@ -165,33 +140,19 @@ benchmarkSubResult *_runBenchmark(testType testType, FILE *sourceData, double fi
         }
 
         MPI_CHECK(MPI_Barrier(MPI_COMM_WORLD));
-        if (rank == 0)
-        {
-            currentBenchmark->testEndTime = MPI_Wtime();
-            // save the elapsed time of the benchmark
-            currentBenchmark->testBandWidth = fileSize / (currentBenchmark->testEndTime - currentBenchmark->testBeginTime);
-        }
 
     case Scatter:
 
-        if (rank == 0)
-        {
-            // start timer
-            currentBenchmark->testBeginTime = MPI_Wtime();
-            // fill buffer with first block of data and then not repeat again
-            fread(buffer, windowSize, 1, sourceData);
-        }
-
+        sleep(0); //done to avoid compilaton errors. this does absolutely notthing
+        
         // commsize-1 to not count master node
         int bytes_per_node = (int)(windowSize / (commSize - 1));
         char *recv_buffer = (char *)malloc(bytes_per_node);
 
-        //calculating max offset possble with file size and windows size
-        //so that i am shure i will allways transfer a multiple of windowSize
+        // calculating max offset possble with file size and windows size
+        // so that i am shure i will allways transfer a multiple of windowSize (thus avoiding the need to use Mpi_Scatterv)
         int bytes_count_not_tx = (int)fileSize % windowSize;
         int max_transfer_size = fileSize - bytes_count_not_tx;
-
-        
 
         for (double i = 0; i < max_transfer_size; i = i + windowSize)
         {
@@ -201,23 +162,24 @@ benchmarkSubResult *_runBenchmark(testType testType, FILE *sourceData, double fi
                 fread(buffer, windowSize, 1, sourceData);
             }
             MPI_CHECK(MPI_Scatter(buffer, bytes_per_node, MPI_BYTE, recv_buffer, bytes_per_node, MPI_BYTE, 0, MPI_COMM_WORLD));
-          
         }
 
         MPI_CHECK(MPI_Barrier(MPI_COMM_WORLD));
-        if (rank == 0)
-        {
-            currentBenchmark->testEndTime = MPI_Wtime();
-            // save the elapsed time of the benchmark. here i need to divide the effective tx data and not the filesize as it might happen that 
-            //the file size is not a multiple of windowSize
-            currentBenchmark->testBandWidth = max_transfer_size / (currentBenchmark->testEndTime - currentBenchmark->testBeginTime);
-        }
+
         free(recv_buffer);
         break;
 
     default:
         log_print(error, "No benchmark implemented for given parameter.\n");
         break;
+    }
+
+    if (rank == 0)
+    {
+        currentBenchmark->testEndTime = MPI_Wtime();
+        // save the elapsed time of the benchmark. max_trnasfer_size is equal to fileSize, except for benchmark Scatter
+        // where it might get reduced in order to make it a multiple of windowSize
+        currentBenchmark->testBandWidth = max_transfer_size / (currentBenchmark->testEndTime - currentBenchmark->testBeginTime);
     }
 
     return currentBenchmark;

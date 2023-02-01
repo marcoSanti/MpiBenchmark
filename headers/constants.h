@@ -1,6 +1,6 @@
 #define __MPI_BENCH_VERSION__ "0.2"
 #define __MPI_BENCH_AUTHOR__ "Marco Edoardo Santimaria (marco.santimaria@edu.unito.it)"
-#define __MPI_BENCH_COMPANY__ "Universita degli studi di Torino"
+#define __MPI_BENCH_COMPANY__ "Università degli studi di Torino"
 
 // definition of bytes multiples
 #define KBYTES *1024
@@ -11,7 +11,7 @@
 //default parameters
 #define __TEMP_FILE_NAME__ "./mpi_bench_temp_src"
 #define __WINDOW__SIZE__ 200
-#define __TEMP_FILE_SIZE__ 1 GBYTES
+#define __TEMP_FILE_SIZE__ 100 MBYTES
 
 #define __MPI_TERMINATE_CONNECTION__ 1
 #define __MPI_SEND_DATA__ 2
