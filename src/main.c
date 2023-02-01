@@ -92,7 +92,7 @@ int main(int argc, char *argv[])
 
     //runBenchmark(Buffered, sampleData, processRank, __MIN_WIN_SIZE__, __MAX_WIN_SIZE__, __WIN_SIZE_STEP__);
     //runBenchmark(Unbuffered, sampleData, processRank, __MIN_WIN_SIZE__, __MAX_WIN_SIZE__, __WIN_SIZE_STEP__);
-    runBenchmark(Broadcast, sampleData, processRank, __MIN_WIN_SIZE__, __MAX_WIN_SIZE__, __WIN_SIZE_STEP__);
+    //runBenchmark(Broadcast, sampleData, processRank, __MIN_WIN_SIZE__, __MAX_WIN_SIZE__, __WIN_SIZE_STEP__);
     runBenchmark(Scatter, sampleData, processRank, __MIN_WIN_SIZE__, __MAX_WIN_SIZE__, __WIN_SIZE_STEP__);
 
     MPI_CHECK(MPI_Finalize());
